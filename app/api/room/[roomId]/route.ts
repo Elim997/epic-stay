@@ -2,54 +2,54 @@ import prismadb from "@/lib/prismadb";
 import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
-export async function PATCH(req:Request,{params}:{params:{hotelId:string}}) {
+export async function PATCH(req:Request,{params}:{params:{roomId:string}}) {
     try{
         const body = await req.json();
         const {userId} = auth();
-        if(!params.hotelId){
-            return new NextResponse('Hotel Id is required',{status:400})
+        if(!params.roomId){
+            return new NextResponse('Room Id is required',{status:400})
         }
 
         if(!userId){
             return new NextResponse('Unauthorized',{status:401})
         }
 
-        const hotel = await prismadb.hotel.update({
+        const room = await prismadb.room.update({
             where:{
-                id: params.hotelId,
+                id: params.roomId,
             },
             data:{...body}
         })
 
-        return NextResponse.json(hotel)
+        return NextResponse.json(room)
     }catch(error){
-        console.log('Eroor at /api/hotel/hotelId PATCH', error)
+        console.log('Eroor at /api/room/roomId PATCH', error)
         return new NextResponse('Internal Server Error', {status:500})
     }
 }
 
-export async function DELETE(req:Request,{params}:{params:{hotelId:string}}) {
+export async function DELETE(req:Request,{params}:{params:{roomId:string}}) {
     try{
         
         const {userId} = auth();
-        if(!params.hotelId){
-            return new NextResponse('Hotel Id is required',{status:400})
+        if(!params.roomId){
+            return new NextResponse('Room Id is required',{status:400})
         }
 
         if(!userId){
             return new NextResponse('Unauthorized',{status:401})
         }
 
-        const hotel = await prismadb.hotel.delete({
+        const room = await prismadb.room.delete({
             where:{
-                id: params.hotelId,
+                id: params.roomId,
             }
            
         })
 
-        return NextResponse.json(hotel)
+        return NextResponse.json(room)
     }catch(error){
-        console.log('Eroor at /api/hotel/hotelId DELETE', error)
+        console.log('Eroor at /api/room/roomId DELETE', error)
         return new NextResponse('Internal Server Error', {status:500})
     }
 }

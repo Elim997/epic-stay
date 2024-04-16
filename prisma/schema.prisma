@@ -4,9 +4,17 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+// datasource db {
+//   provider     = "mysql"
+//   url          = env("DATABASE_URL")
+//   relationMode = "prisma"
+// }
+
 datasource db {
-  provider     = "mysql"
-  url          = env("DATABASE_URL")
+  provider = "postgresql"
+
+  url = env("DATABASE_URL")
+
   relationMode = "prisma"
 }
 
@@ -19,12 +27,12 @@ model Hotel {
   id                  String    @id @default(uuid())
   userId              String
   title               String    @db.Text
-  description         String    @db.LongText
+  description         String
   image               String
   country             String
   state               String
   city                String
-  locationDescription String    @db.LongText
+  locationDescription String
   gym                 Boolean   @default(false)
   spa                 Boolean   @default(false)
   bar                 Boolean   @default(false)
@@ -40,14 +48,12 @@ model Hotel {
   updatedAt           DateTime  @default(now())
   rooms               Room[]
   booking             Booking[]
-
-  @@fulltext([title])
 }
 
 model Room {
   id             String  @id @default(uuid())
   title          String
-  description    String  @db.LongText
+  description    String
   bedCount       Int     @default(0)
   guestCount     Int     @default(0)
   bathroomCount  Int     @default(0)
@@ -75,13 +81,14 @@ model Room {
 model Booking {
   id                String   @id @default(uuid())
   userName          String
+  userEmail         String
   userId            String
   hotelId           String
   roomId            String
-  HotelOwnerId      String
+  hotelOwnerId      String
   startDate         DateTime
   endDate           DateTime
-  breakFastIncluded Boolean
+  breakfastIncluded Boolean
   currency          String
   totalPrice        Int
   paymentStatus     Boolean  @default(false)

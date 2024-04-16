@@ -17,3 +17,5 @@ export const getHotelById = async (hotelId: string) => {
     throw new Error(error);
   }
 };
+
+// didn't really need to make it a react component (.tsx) but renaming it to .ts will make errors *shrugs*

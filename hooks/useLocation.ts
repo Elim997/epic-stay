@@ -2,18 +2,18 @@ import {Country,State,City} from 'country-state-city'
 
 const useLocation = () => {
     const getCountryByCode = (countryCode: string) =>{
-        return Country.getAllCountries().find((country)=>{
+        return Country.getAllCountries().find((country)=>
             country.isoCode === countryCode
-        })
+        )
     }
 
     const getStateByCode = (countryCode: string, stateCode:string) => {
-        const state = State.getAllStates().find((state)=>{
+        const state = State.getAllStates().find((state)=>
            state.countryCode === countryCode && state.isoCode === stateCode
-        })
+        )
         if(!state){ return null}
 
-        return state
+        return state 
     }
     const getCountryStates = (countryCode:string) => {
         return State.getAllStates().filter((state) => state.countryCode === countryCode)
