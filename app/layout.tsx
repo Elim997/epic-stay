@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import Container from "@/components/Container";
 import "@uploadthing/react/styles.css";
 import { Toaster } from "@/components/ui/toaster";
+import LocationFilter from "@/components/LocationFilter";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -34,6 +35,7 @@ export default function RootLayout({
             <Toaster />
             <main className="flex flex-col min-h-screen bg-secondary">
               <NavBar />
+              <LocationFilter />
               <section className="flex-grow">
                 <Container>{children}</Container>
               </section>
