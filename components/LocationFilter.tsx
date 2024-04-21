@@ -12,7 +12,7 @@ import {
 import useLocation from "@/hooks/useLocation";
 import qs from "query-string";
 import { ICity, IState } from "country-state-city";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "./ui/button";
 
 const LocationFilter = () => {
@@ -23,6 +23,7 @@ const LocationFilter = () => {
   const [cities, setCities] = useState<ICity[]>([]);
   const router = useRouter();
   const params = useSearchParams();
+  const pathname = usePathname();
 
   const { getAllCountries, getCountryStates, getStateCities } = useLocation();
   const countries = getAllCountries();
@@ -91,6 +92,8 @@ const LocationFilter = () => {
     setState("");
     setCity("");
   };
+
+  if (pathname !== "/") return null;
 
   return (
     <Container>
