@@ -26,17 +26,17 @@ Hotel booking demo app built with Next.js, Prisma, PostgreSQL, Clerk, Stripe, an
 
 ## Environment Variables
 
-DATABASE_URL=
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
-STRIPE_SECRET_KEY=
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
-UPLOADTHING_SECRET=
-UPLOADTHING_APP_ID=
+- DATABASE_URL=
+- NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+- CLERK_SECRET_KEY=
+- STRIPE_SECRET_KEY=
+- NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+- UPLOADTHING_SECRET=
+- UPLOADTHING_APP_ID=
 
 ## Local Setup
 
-npm install
-npx prisma generate
-npx prisma db push
-npm run dev
+- npm install
+- npx prisma generate
+- npx prisma db push
+- npm run dev
