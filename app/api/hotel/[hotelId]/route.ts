@@ -3,23 +3,41 @@ import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
 export async function PATCH(req:Request,{params}:{params:{hotelId:string}}) {
-    try{
-        const body = await req.json();
+    try {
         const {userId} = auth();
-        if(!params.hotelId){
-            return new NextResponse('Hotel Id is required',{status:400})
+        if (!params.hotelId) {
+            return new NextResponse("Hotel Id is required", { status: 400 });
         }
 
-        if(!userId){
-            return new NextResponse('Unauthorized',{status:401})
+        if (!userId) {
+            return new NextResponse("Unauthorized", { status: 401 });
         }
 
+        const existingHotel = await prismadb.hotel.findUnique({
+        where: {
+            id: params.hotelId,
+        },
+        });
+
+        if (!existingHotel) {
+        return new NextResponse("Hotel not found", { status: 404 });
+        }
+
+        if (existingHotel.userId !== userId) {
+        return new NextResponse("Forbidden", { status: 403 });
+        }
+
+
+        const body = await req.json();
+       
         const hotel = await prismadb.hotel.update({
             where:{
                 id: params.hotelId,
             },
             data:{...body}
         })
+
+    
 
         return NextResponse.json(hotel)
     }catch(error){
@@ -32,6 +50,8 @@ export async function DELETE(req:Request,{params}:{params:{hotelId:string}}) {
     try{
         
         const {userId} = auth();
+
+
         if(!params.hotelId){
             return new NextResponse('Hotel Id is required',{status:400})
         }
@@ -39,6 +59,22 @@ export async function DELETE(req:Request,{params}:{params:{hotelId:string}}) {
         if(!userId){
             return new NextResponse('Unauthorized',{status:401})
         }
+
+        const existingHotel = await prismadb.hotel.findUnique({
+        where: {
+            id: params.hotelId,
+        },
+        });
+
+        if (!existingHotel) {
+        return new NextResponse("Hotel not found", { status: 404 });
+        }
+
+        if (existingHotel.userId !== userId) {
+        return new NextResponse("Forbidden", { status: 403 });
+        }
+
+
 
         const hotel = await prismadb.hotel.delete({
             where:{

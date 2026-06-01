@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function PATCH(req:Request,{params}:{params:{roomId:string}}) {
     try{
-        const body = await req.json();
+        
         const {userId} = auth();
         if(!params.roomId){
             return new NextResponse('Room Id is required',{status:400})
@@ -13,13 +13,30 @@ export async function PATCH(req:Request,{params}:{params:{roomId:string}}) {
         if(!userId){
             return new NextResponse('Unauthorized',{status:401})
         }
+        const body = await req.json();
+        const existingRoom = await prismadb.room.findUnique({
+        where: {
+            id: params.roomId,
+        },
+        include: {
+            Hotel: true,
+        },
+        });
 
+        if (!existingRoom) {
+            return new NextResponse("Room not found", { status: 404 });
+        }
+
+        if (existingRoom.Hotel?.userId !== userId) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
         const room = await prismadb.room.update({
             where:{
                 id: params.roomId,
             },
             data:{...body}
         })
+        
 
         return NextResponse.json(room)
     }catch(error){
@@ -38,6 +55,22 @@ export async function DELETE(req:Request,{params}:{params:{roomId:string}}) {
 
         if(!userId){
             return new NextResponse('Unauthorized',{status:401})
+        }
+        const existingRoom = await prismadb.room.findUnique({
+        where: {
+            id: params.roomId,
+        },
+        include: {
+            Hotel: true,
+        },
+        });
+
+        if (!existingRoom) {
+            return new NextResponse("Room not found", { status: 404 });
+        }
+
+        if (existingRoom.Hotel?.userId !== userId) {
+            return new NextResponse("Forbidden", { status: 403 });
         }
 
         const room = await prismadb.room.delete({
