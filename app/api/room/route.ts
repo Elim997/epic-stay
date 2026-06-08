@@ -8,7 +8,7 @@ const roomSchema = z.object({
   description: z.string().min(1),
   image: z.string().min(1),
   roomPrice: z.number().int().min(0),
-  breakFastPrice: z.number().int().min(0),
+  breakFastPrice: z.number().int().min(0).optional().default(0),
   bedCount: z.number().int().min(0).optional().default(0),
   guestCount: z.number().int().min(0).optional().default(0),
   bathroomCount: z.number().int().min(0).optional().default(0),

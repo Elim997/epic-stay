@@ -18,6 +18,32 @@ export async function POST(req:Request) {
     const body = await req.json()
     const {booking, payment_intent_id} = body;
 
+    if (!booking?.roomId) {
+        return new NextResponse('Room Id is required', {status: 400})
+    }
+
+    const room = await prismadb.room.findUnique({
+        where: { id: booking.roomId }
+    })
+
+    if (!room) {
+        return new NextResponse('Room not found', {status: 404})
+    }
+
+    if (room.hotelId !== booking.hotelId) {
+        return new NextResponse('Room does not belong to this hotel', {status: 400})
+    }
+
+    const startDate = new Date(booking.startDate)
+    const endDate = new Date(booking.endDate)
+    const nights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (nights <= 0) {
+        return new NextResponse('Invalid booking dates', {status: 400})
+    }
+
+    const computedTotal = nights * room.roomPrice + (booking.breakfastIncluded ? nights * room.breakFastPrice : 0)
+
     const bookingData = {
         ...booking,
         userName: user.firstName,
@@ -25,6 +51,7 @@ export async function POST(req:Request) {
         userId: user.id,
         currency: 'usd',
         paymentIntentId: payment_intent_id,
+        totalPrice: computedTotal,
     }
 
     let foundBooking;
@@ -39,7 +66,7 @@ export async function POST(req:Request) {
         const current_intent = await stripe.paymentIntents.retrieve(payment_intent_id)
         if(current_intent){
             const updated_intent = await stripe.paymentIntents.update(payment_intent_id,{
-                amount: booking.totalPrice * 100
+                amount: computedTotal * 100
             })
             const res = await prismadb.booking.update({
                 where:{paymentIntentId:payment_intent_id,userId:user.id},
@@ -55,13 +82,13 @@ export async function POST(req:Request) {
     }else{
         //create
         const paymentIntent = await stripe.paymentIntents.create({
-            amount: booking.totalPrice * 100,
+            amount: computedTotal * 100,
             currency: bookingData.currency,
             automatic_payment_methods: {enabled: true}
         })
 
         bookingData.paymentIntentId = paymentIntent.id;
-        
+
         await prismadb.booking.create({
             data: bookingData
         })
