@@ -78,7 +78,7 @@ const AddRoomForm = ({ hotel, room, handleDialogueOpen }: AddRoomFormProps) => {
       doubleBed: 0,
       image: "",
       breakFastPrice: 0,
-      roomPrice: 0,
+      roomPrice: 1,
       TV: false,
       balcony: false,
       heating: false,
@@ -401,7 +401,7 @@ const AddRoomForm = ({ hotel, room, handleDialogueOpen }: AddRoomFormProps) => {
                       Place your room price here.
                     </FormDescription>
                     <FormControl>
-                      <Input type="number" min={0} {...field} />
+                      <Input type="number" min={1} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

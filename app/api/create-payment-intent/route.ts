@@ -25,6 +25,11 @@ export async function POST(req: Request) {
             return new NextResponse('Hotel Id is required', { status: 400 })
         }
 
+        // Explicit null guard before Date construction — new Date(null) = epoch, not NaN
+        if (booking.startDate == null || booking.endDate == null) {
+            return new NextResponse('Invalid booking dates', { status: 400 })
+        }
+
         const room = await prismadb.room.findUnique({
             where: { id: booking.roomId },
             include: { Hotel: true }
@@ -57,6 +62,14 @@ export async function POST(req: Request) {
 
         const computedTotal = nights * room.roomPrice + (booking.breakfastIncluded ? nights * room.breakFastPrice : 0)
 
+        const userEmail = user.emailAddresses.find(e => e.id === user.primaryEmailAddressId)?.emailAddress
+            ?? user.emailAddresses[0]?.emailAddress
+            ?? ''
+
+        if (!userEmail) {
+            return new NextResponse('User email is required', { status: 400 })
+        }
+
         // All fields sourced from server-verified data only
         const safeBookingFields = {
             roomId: room.id,
@@ -65,7 +78,7 @@ export async function POST(req: Request) {
             endDate,
             breakfastIncluded: !!booking.breakfastIncluded,
             userName: user.firstName ?? user.username ?? '',
-            userEmail: user.emailAddresses.find(e => e.id === user.primaryEmailAddressId)?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? '',
+            userEmail,
             userId: user.id,
             hotelOwnerId: room.Hotel.userId,
             currency: 'usd',
@@ -80,8 +93,7 @@ export async function POST(req: Request) {
         }
 
         // Block double-booking: check for confirmed bookings on overlapping dates.
-        // On updates, exclude the current booking so changing dates on your own
-        // booking doesn't falsely conflict with itself.
+        // On updates, exclude the current booking so date changes don't conflict with itself.
         const overlap = await prismadb.booking.findFirst({
             where: {
                 roomId: room.id,
@@ -109,13 +121,23 @@ export async function POST(req: Request) {
 
             return NextResponse.json({ paymentIntent: updated_intent })
         } else {
-            // If a stale payment_intent_id was supplied (booking deleted or wrong user),
-            // cancel it on Stripe so the client_secret can no longer be used to charge.
+            // If a stale payment_intent_id was supplied, cancel it on Stripe only when
+            // no booking record exists for it at all (i.e., it belongs to no user).
+            // Cancelling another user's PI would destroy their in-progress checkout.
             if (payment_intent_id) {
-                try {
-                    await stripe.paymentIntents.cancel(payment_intent_id)
-                } catch {
-                    // Already cancelled, succeeded, or not found — safe to ignore
+                const anyBooking = await prismadb.booking.findUnique({
+                    where: { paymentIntentId: payment_intent_id }
+                })
+                if (!anyBooking) {
+                    try {
+                        await stripe.paymentIntents.cancel(payment_intent_id)
+                    } catch (cancelError: any) {
+                        // StripeInvalidRequestError = already cancelled/succeeded — safe to ignore.
+                        // Any other error type (auth, rate limit) warrants a log.
+                        if (cancelError?.type !== 'StripeInvalidRequestError') {
+                            console.log('Unexpected error cancelling stale PI:', cancelError)
+                        }
+                    }
                 }
             }
 
@@ -125,13 +147,20 @@ export async function POST(req: Request) {
                 automatic_payment_methods: { enabled: true }
             })
 
-            await prismadb.booking.create({
-                data: {
-                    ...safeBookingFields,
-                    paymentIntentId: paymentIntent.id,
-                    paymentStatus: false,
-                }
-            })
+            try {
+                await prismadb.booking.create({
+                    data: {
+                        ...safeBookingFields,
+                        paymentIntentId: paymentIntent.id,
+                        paymentStatus: false,
+                    }
+                })
+            } catch (dbError) {
+                // DB write failed after Stripe PI was created — cancel the PI to prevent
+                // an orphaned intent that can never be confirmed or reconciled.
+                try { await stripe.paymentIntents.cancel(paymentIntent.id) } catch {}
+                throw dbError
+            }
 
             return NextResponse.json({ paymentIntent })
         }
