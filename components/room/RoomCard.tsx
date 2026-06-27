@@ -203,6 +203,7 @@ const RoomCard = ({ hotel, room, bookings = [] }: RoomCardProps) => {
           return res.json();
         })
         .then((data) => {
+          if (!data) return;
           setClientSecret(data.paymentIntent.client_secret);
           setPaymentIntentId(data.paymentIntent.id);
           router.push("/book-room");

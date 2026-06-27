@@ -18,16 +18,16 @@ export async function POST(req: Request) {
         const { booking, payment_intent_id } = body;
 
         if (!booking?.roomId) {
-            return new NextResponse('Room Id is required', { status: 400 })
+            return NextResponse.json({ error: 'Room Id is required' }, { status: 400 })
         }
 
         if (!booking?.hotelId) {
-            return new NextResponse('Hotel Id is required', { status: 400 })
+            return NextResponse.json({ error: 'Hotel Id is required' }, { status: 400 })
         }
 
         // Explicit null guard before Date construction — new Date(null) = epoch, not NaN
         if (booking.startDate == null || booking.endDate == null) {
-            return new NextResponse('Invalid booking dates', { status: 400 })
+            return NextResponse.json({ error: 'Invalid booking dates' }, { status: 400 })
         }
 
         const room = await prismadb.room.findUnique({
@@ -36,28 +36,28 @@ export async function POST(req: Request) {
         })
 
         if (!room) {
-            return new NextResponse('Room not found', { status: 404 })
+            return NextResponse.json({ error: 'Room not found' }, { status: 404 })
         }
 
         if (!room.Hotel) {
-            return new NextResponse('Hotel not found', { status: 404 })
+            return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
         }
 
         if (room.hotelId !== booking.hotelId) {
-            return new NextResponse('Room does not belong to this hotel', { status: 400 })
+            return NextResponse.json({ error: 'Room does not belong to this hotel' }, { status: 400 })
         }
 
         const startDate = new Date(booking.startDate)
         const endDate = new Date(booking.endDate)
 
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-            return new NextResponse('Invalid booking dates', { status: 400 })
+            return NextResponse.json({ error: 'Invalid booking dates' }, { status: 400 })
         }
 
         const nights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
 
         if (nights <= 0) {
-            return new NextResponse('Invalid booking dates', { status: 400 })
+            return NextResponse.json({ error: 'Invalid booking dates' }, { status: 400 })
         }
 
         const computedTotal = nights * room.roomPrice + (booking.breakfastIncluded ? nights * room.breakFastPrice : 0)
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
             ?? ''
 
         if (!userEmail) {
-            return new NextResponse('User email is required', { status: 400 })
+            return NextResponse.json({ error: 'User email is required' }, { status: 400 })
         }
 
         // All fields sourced from server-verified data only
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
         let foundBooking;
         if (payment_intent_id) {
             foundBooking = await prismadb.booking.findUnique({
-                where: { paymentIntentId: payment_intent_id, userId: user.id, paymentStatus: false }
+                where: { paymentIntentId: payment_intent_id, userId: user.id }
             })
         }
 
@@ -173,6 +173,6 @@ export async function POST(req: Request) {
         }
     } catch (error) {
         console.log('Error at /api/create-payment-intent POST', error)
-        return new NextResponse('Internal Server Error', { status: 500 })
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
     }
 }

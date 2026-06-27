@@ -118,7 +118,7 @@ const RoomPaymentForm = ({
       stripe
         .confirmPayment({ elements, redirect: "if_required" })
         .then((result) => {
-          if (!result.error) {
+          if (!result.error && result.paymentIntent?.status === 'succeeded') {
             axios
               .patch(`/api/booking/${result.paymentIntent.id}`)
               .then((res) => {

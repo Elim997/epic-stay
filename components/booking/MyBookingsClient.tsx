@@ -117,6 +117,7 @@ const MyBookingsClient: React.FC<MyBookingsClientProps> = ({ booking }) => {
         return res.json();
       })
       .then((data) => {
+        if (!data) return;
         setClientSecret(data.paymentIntent.client_secret);
         setPaymentIntentId(data.paymentIntent.id);
         router.push("/book-room");
