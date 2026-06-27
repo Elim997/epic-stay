@@ -1,28 +1,7 @@
 import prismadb from "@/lib/prismadb";
+import { roomSchema } from "@/lib/validationSchemas";
 import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server"
-import { z } from "zod"
-
-const roomSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().min(1),
-  image: z.string().min(1),
-  roomPrice: z.number().int().min(0),
-  breakFastPrice: z.number().int().min(0).optional().default(0),
-  bedCount: z.number().int().min(0).optional().default(0),
-  guestCount: z.number().int().min(0).optional().default(0),
-  bathroomCount: z.number().int().min(0).optional().default(0),
-  singleBed: z.number().int().min(0).optional().default(0),
-  doubleBed: z.number().int().min(0).optional().default(0),
-  TV: z.boolean().optional().default(false),
-  balcony: z.boolean().optional().default(false),
-  heating: z.boolean().optional().default(false),
-  nonSmokingRoom: z.boolean().optional().default(false),
-  AC: z.boolean().optional().default(false),
-  cityView: z.boolean().optional().default(false),
-  oceanView: z.boolean().optional().default(false),
-  mountionView: z.boolean().optional().default(false),
-});
 
 export async function POST(req:Request) {
     try{
@@ -31,17 +10,16 @@ export async function POST(req:Request) {
         if(!userId){
             return new NextResponse('Unauthorized',{status:401})
         }
-        
+
         const body = await req.json();
         const { hotelId, ...roomData } = body;
 
-        if (!hotelId) {
+        if (!hotelId || typeof hotelId !== 'string') {
             return new NextResponse("Hotel Id is required", { status: 400 });
         }
+
         const hotel = await prismadb.hotel.findUnique({
-            where: {
-                id: hotelId,
-            },
+            where: { id: hotelId },
         });
 
         if (!hotel) {
@@ -67,7 +45,7 @@ export async function POST(req:Request) {
         return NextResponse.json(room)
 
     } catch(error){
-        console.log('Eroor at /api/room POST', error)
+        console.log('Error at /api/room POST', error)
         return new NextResponse('Internal Server Error', {status:500})
     }
 }
