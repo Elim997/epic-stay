@@ -1,5 +1,5 @@
 import prismadb from "@/lib/prismadb";
-import { hotelSchema } from "@/lib/validationSchemas";
+import { hotelUpdateSchema } from "@/lib/validationSchemas";
 import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
@@ -27,9 +27,14 @@ export async function PATCH(req:Request,{params}:{params:{hotelId:string}}) {
         }
 
         const body = await req.json();
-        const validatedBody = hotelSchema.partial().safeParse(body);
+        const validatedBody = hotelUpdateSchema.safeParse(body);
         if (!validatedBody.success) {
             return new NextResponse('Invalid hotel data', { status: 400 });
+        }
+
+        const hasUpdate = Object.values(validatedBody.data).some(v => v !== undefined)
+        if (!hasUpdate) {
+            return new NextResponse('No fields to update', { status: 400 });
         }
 
         const hotel = await prismadb.hotel.update({

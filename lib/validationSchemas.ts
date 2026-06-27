@@ -21,11 +21,14 @@ export const hotelSchema = z.object({
   parking: z.boolean().optional().default(false),
 });
 
+// Partial schema for PATCH: absent fields are undefined (Prisma skips them)
+export const hotelUpdateSchema = hotelSchema.partial();
+
 export const roomSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
   image: z.string().min(1),
-  roomPrice: z.number().int().min(0),
+  roomPrice: z.number().int().min(1),
   breakFastPrice: z.number().int().min(0).optional().default(0),
   bedCount: z.number().int().min(0).optional().default(0),
   guestCount: z.number().int().min(0).optional().default(0),
@@ -41,3 +44,6 @@ export const roomSchema = z.object({
   oceanView: z.boolean().optional().default(false),
   mountionView: z.boolean().optional().default(false),
 });
+
+// Partial schema for PATCH: absent fields are undefined (Prisma skips them)
+export const roomUpdateSchema = roomSchema.partial();

@@ -21,6 +21,10 @@ export async function POST(req: Request) {
             return new NextResponse('Room Id is required', { status: 400 })
         }
 
+        if (!booking?.hotelId) {
+            return new NextResponse('Hotel Id is required', { status: 400 })
+        }
+
         const room = await prismadb.room.findUnique({
             where: { id: booking.roomId },
             include: { Hotel: true }
@@ -53,16 +57,15 @@ export async function POST(req: Request) {
 
         const computedTotal = nights * room.roomPrice + (booking.breakfastIncluded ? nights * room.breakFastPrice : 0)
 
-        // Build booking fields from server-verified sources only — never trust client for
-        // hotelOwnerId, paymentStatus, userId, totalPrice, or pricing inputs.
+        // All fields sourced from server-verified data only
         const safeBookingFields = {
-            roomId: booking.roomId,
-            hotelId: booking.hotelId,
+            roomId: room.id,
+            hotelId: room.hotelId,
             startDate,
             endDate,
             breakfastIncluded: !!booking.breakfastIncluded,
             userName: user.firstName ?? user.username ?? '',
-            userEmail: user.emailAddresses[0].emailAddress,
+            userEmail: user.emailAddresses.find(e => e.id === user.primaryEmailAddressId)?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? '',
             userId: user.id,
             hotelOwnerId: room.Hotel.userId,
             currency: 'usd',
@@ -76,20 +79,46 @@ export async function POST(req: Request) {
             })
         }
 
+        // Block double-booking: check for confirmed bookings on overlapping dates.
+        // On updates, exclude the current booking so changing dates on your own
+        // booking doesn't falsely conflict with itself.
+        const overlap = await prismadb.booking.findFirst({
+            where: {
+                roomId: room.id,
+                paymentStatus: true,
+                startDate: { lt: endDate },
+                endDate: { gt: startDate },
+                ...(foundBooking ? { NOT: { paymentIntentId: payment_intent_id } } : {}),
+            }
+        })
+        if (overlap) {
+            return new NextResponse('Room is not available for these dates', { status: 409 })
+        }
+
         if (foundBooking && payment_intent_id) {
+            // Write DB first so it is the source of truth; sync Stripe amount after
+            await prismadb.booking.update({
+                where: { paymentIntentId: payment_intent_id, userId: user.id },
+                data: safeBookingFields
+                // paymentStatus intentionally excluded — PATCH /api/booking/[Id] owns it
+            })
+
             const updated_intent = await stripe.paymentIntents.update(payment_intent_id, {
                 amount: computedTotal * 100
             })
 
-            await prismadb.booking.update({
-                where: { paymentIntentId: payment_intent_id, userId: user.id },
-                data: safeBookingFields
-                // paymentStatus is intentionally excluded: the PATCH /api/booking/[Id]
-                // handler owns that field after Stripe confirms payment
-            })
-
             return NextResponse.json({ paymentIntent: updated_intent })
         } else {
+            // If a stale payment_intent_id was supplied (booking deleted or wrong user),
+            // cancel it on Stripe so the client_secret can no longer be used to charge.
+            if (payment_intent_id) {
+                try {
+                    await stripe.paymentIntents.cancel(payment_intent_id)
+                } catch {
+                    // Already cancelled, succeeded, or not found — safe to ignore
+                }
+            }
+
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: computedTotal * 100,
                 currency: safeBookingFields.currency,

@@ -1,5 +1,5 @@
 import prismadb from "@/lib/prismadb";
-import { roomSchema } from "@/lib/validationSchemas";
+import { roomUpdateSchema } from "@/lib/validationSchemas";
 import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
@@ -32,9 +32,14 @@ export async function PATCH(req:Request,{params}:{params:{roomId:string}}) {
             return new NextResponse("Forbidden", { status: 403 });
         }
 
-        const validatedBody = roomSchema.partial().safeParse(body);
+        const validatedBody = roomUpdateSchema.safeParse(body);
         if (!validatedBody.success) {
             return new NextResponse("Invalid room data", { status: 400 });
+        }
+
+        const hasUpdate = Object.values(validatedBody.data).some(v => v !== undefined)
+        if (!hasUpdate) {
+            return new NextResponse('No fields to update', { status: 400 });
         }
 
         const room = await prismadb.room.update({
