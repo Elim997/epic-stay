@@ -191,10 +191,14 @@ const RoomCard = ({ hotel, room, bookings = [] }: RoomCardProps) => {
           payment_intent_id: paymentIntentId,
         }),
       })
-        .then((res) => {
+        .then(async (res) => {
           setBookingIsLoading(false);
           if (res.status === 401) {
             return router.push("/login");
+          }
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || 'Booking failed');
           }
           return res.json();
         })

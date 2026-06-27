@@ -1,6 +1,11 @@
 import prismadb from "@/lib/prismadb";
 import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+    apiVersion: "2023-10-16",
+})
 
 export async function PATCH(req:Request,{params}:{params:{Id:string}}) {
     try{
@@ -22,6 +27,12 @@ export async function PATCH(req:Request,{params}:{params:{Id:string}}) {
 
         if (existingBooking.userId !== userId) {
             return new NextResponse("Forbidden", { status: 403 })
+        }
+
+        // Verify with Stripe that the payment actually succeeded before marking paid
+        const intent = await stripe.paymentIntents.retrieve(params.Id)
+        if (intent.status !== 'succeeded') {
+            return new NextResponse('Payment not completed', { status: 400 })
         }
 
         const booking = await prismadb.booking.update({
@@ -56,6 +67,10 @@ export async function DELETE(req:Request,{params}:{params:{Id:string}}) {
 
         if (existingBooking.userId !== userId && existingBooking.hotelOwnerId !== userId) {
             return new NextResponse("Forbidden", { status: 403 })
+        }
+
+        if (existingBooking.paymentStatus) {
+            return new NextResponse("Cannot delete a paid booking", { status: 403 })
         }
 
         const booking = await prismadb.booking.delete({

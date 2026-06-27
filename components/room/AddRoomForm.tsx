@@ -401,7 +401,7 @@ const AddRoomForm = ({ hotel, room, handleDialogueOpen }: AddRoomFormProps) => {
                       Place your room price here.
                     </FormDescription>
                     <FormControl>
-                      <Input type="number" min={1} {...field} />
+                      <Input type="number" min={1} step={1} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -417,7 +417,7 @@ const AddRoomForm = ({ hotel, room, handleDialogueOpen }: AddRoomFormProps) => {
                       Place amount of beds in a room.
                     </FormDescription>
                     <FormControl>
-                      <Input type="number" min={0} {...field} />
+                      <Input type="number" min={0} step={1} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -433,7 +433,7 @@ const AddRoomForm = ({ hotel, room, handleDialogueOpen }: AddRoomFormProps) => {
                       Place amount of guest in a room.
                     </FormDescription>
                     <FormControl>
-                      <Input type="number" min={0} {...field} />
+                      <Input type="number" min={0} step={1} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -449,7 +449,7 @@ const AddRoomForm = ({ hotel, room, handleDialogueOpen }: AddRoomFormProps) => {
                       Place amount of bathrooms in a room.
                     </FormDescription>
                     <FormControl>
-                      <Input type="number" min={0} {...field} />
+                      <Input type="number" min={0} step={1} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -467,7 +467,7 @@ const AddRoomForm = ({ hotel, room, handleDialogueOpen }: AddRoomFormProps) => {
                       Place your breakfast price here.
                     </FormDescription>
                     <FormControl>
-                      <Input type="number" min={0} {...field} />
+                      <Input type="number" min={0} step={1} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -483,7 +483,7 @@ const AddRoomForm = ({ hotel, room, handleDialogueOpen }: AddRoomFormProps) => {
                       Place amount of single beds in a room.
                     </FormDescription>
                     <FormControl>
-                      <Input type="number" min={0} {...field} />
+                      <Input type="number" min={0} step={1} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -499,7 +499,7 @@ const AddRoomForm = ({ hotel, room, handleDialogueOpen }: AddRoomFormProps) => {
                       Place amount of double beds in a room.
                     </FormDescription>
                     <FormControl>
-                      <Input type="number" min={0} {...field} />
+                      <Input type="number" min={0} step={1} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

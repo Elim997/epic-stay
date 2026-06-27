@@ -88,7 +88,7 @@ export async function POST(req: Request) {
         let foundBooking;
         if (payment_intent_id) {
             foundBooking = await prismadb.booking.findUnique({
-                where: { paymentIntentId: payment_intent_id, userId: user.id }
+                where: { paymentIntentId: payment_intent_id, userId: user.id, paymentStatus: false }
             })
         }
 
@@ -104,10 +104,17 @@ export async function POST(req: Request) {
             }
         })
         if (overlap) {
-            return new NextResponse('Room is not available for these dates', { status: 409 })
+            return NextResponse.json({ error: 'Room is not available for these dates' }, { status: 409 })
         }
 
         if (foundBooking && payment_intent_id) {
+            // Guard against updating a PI that Stripe has already finalised
+            const currentIntent = await stripe.paymentIntents.retrieve(payment_intent_id)
+            const modifiableStatuses = ['requires_payment_method', 'requires_confirmation', 'requires_action', 'requires_capture']
+            if (!modifiableStatuses.includes(currentIntent.status)) {
+                return NextResponse.json({ error: 'Payment session has expired or already been completed' }, { status: 409 })
+            }
+
             // Write DB first so it is the source of truth; sync Stripe amount after
             await prismadb.booking.update({
                 where: { paymentIntentId: payment_intent_id, userId: user.id },
