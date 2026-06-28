@@ -14,7 +14,6 @@ import { Separator } from "../ui/separator";
 import { Button } from "../ui/button";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { error } from "console";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Terminal } from "lucide-react";
 import { Booking } from "@prisma/client";
@@ -86,6 +85,7 @@ const RoomPaymentForm = ({
     setIsLoading(true);
 
     if (!stripe || !elements || !bookingRoomData) {
+      setIsLoading(false);
       return;
     }
     try {
@@ -118,7 +118,13 @@ const RoomPaymentForm = ({
       stripe
         .confirmPayment({ elements, redirect: "if_required" })
         .then((result) => {
-          if (!result.error && result.paymentIntent?.status === 'succeeded') {
+          if (result.error) {
+            toast({
+              variant: "destructive",
+              description: result.error.message ?? "Payment failed",
+            });
+            setIsLoading(false);
+          } else if (result.paymentIntent?.status === "succeeded") {
             axios
               .patch(`/api/booking/${result.paymentIntent.id}`)
               .then((res) => {
@@ -139,6 +145,13 @@ const RoomPaymentForm = ({
                 });
                 setIsLoading(false);
               });
+          } else if (result.paymentIntent?.status === "processing") {
+            toast({
+              variant: "success",
+              description:
+                "Payment is being processed. Your booking will be confirmed shortly.",
+            });
+            setIsLoading(false);
           } else {
             setIsLoading(false);
           }

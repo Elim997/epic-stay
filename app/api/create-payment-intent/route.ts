@@ -111,66 +111,78 @@ export async function POST(req: Request) {
             // Guard against updating a PI that Stripe has already finalised
             const currentIntent = await stripe.paymentIntents.retrieve(payment_intent_id)
             const modifiableStatuses = ['requires_payment_method', 'requires_confirmation', 'requires_action', 'requires_capture']
-            if (!modifiableStatuses.includes(currentIntent.status)) {
-                return NextResponse.json({ error: 'Payment session has expired or already been completed' }, { status: 409 })
-            }
 
-            // Write DB first so it is the source of truth; sync Stripe amount after
-            await prismadb.booking.update({
-                where: { paymentIntentId: payment_intent_id, userId: user.id },
-                data: safeBookingFields
-                // paymentStatus intentionally excluded — PATCH /api/booking/[Id] owns it
-            })
-
-            const updated_intent = await stripe.paymentIntents.update(payment_intent_id, {
-                amount: computedTotal * 100
-            })
-
-            return NextResponse.json({ paymentIntent: updated_intent })
-        } else {
-            // If a stale payment_intent_id was supplied, cancel it on Stripe only when
-            // no booking record exists for it at all (i.e., it belongs to no user).
-            // Cancelling another user's PI would destroy their in-progress checkout.
-            if (payment_intent_id) {
-                const anyBooking = await prismadb.booking.findUnique({
-                    where: { paymentIntentId: payment_intent_id }
+            if (currentIntent.status === 'canceled') {
+                // Stale canceled PI — delete the orphaned booking row and fall through
+                // to create a fresh PI below, so the user is never permanently locked out.
+                await prismadb.booking.delete({
+                    where: { paymentIntentId: payment_intent_id, userId: user.id }
                 })
-                if (!anyBooking) {
-                    try {
-                        await stripe.paymentIntents.cancel(payment_intent_id)
-                    } catch (cancelError: any) {
-                        // StripeInvalidRequestError = already cancelled/succeeded — safe to ignore.
-                        // Any other error type (auth, rate limit) warrants a log.
-                        if (cancelError?.type !== 'StripeInvalidRequestError') {
-                            console.log('Unexpected error cancelling stale PI:', cancelError)
-                        }
+            } else if (!modifiableStatuses.includes(currentIntent.status)) {
+                const message = currentIntent.status === 'processing'
+                    ? 'Your payment is still being processed. Please wait for confirmation.'
+                    : 'Payment session has expired or already been completed'
+                return NextResponse.json({ error: message }, { status: 409 })
+            } else {
+                // Write DB first so it is the source of truth; sync Stripe amount after
+                await prismadb.booking.update({
+                    where: { paymentIntentId: payment_intent_id, userId: user.id },
+                    data: safeBookingFields
+                    // paymentStatus intentionally excluded — PATCH /api/booking/[Id] owns it
+                })
+
+                const updated_intent = await stripe.paymentIntents.update(payment_intent_id, {
+                    amount: computedTotal * 100
+                })
+
+                return NextResponse.json({ paymentIntent: updated_intent })
+            }
+        }
+
+        // Create path: reached when foundBooking is null (new booking) or when a stale
+        // canceled PI was just cleared above.
+        // If a stale payment_intent_id was supplied, cancel it on Stripe only when
+        // no booking record exists for it at all (i.e., it belongs to no user).
+        // Cancelling another user's PI would destroy their in-progress checkout.
+        if (payment_intent_id) {
+            const anyBooking = await prismadb.booking.findUnique({
+                where: { paymentIntentId: payment_intent_id }
+            })
+            if (!anyBooking) {
+                try {
+                    await stripe.paymentIntents.cancel(payment_intent_id)
+                } catch (cancelError: any) {
+                    // StripeInvalidRequestError = already cancelled/succeeded — safe to ignore.
+                    // Any other error type (auth, rate limit) warrants a log.
+                    if (cancelError?.type !== 'StripeInvalidRequestError') {
+                        console.log('Unexpected error cancelling stale PI:', cancelError)
                     }
                 }
             }
-
-            const paymentIntent = await stripe.paymentIntents.create({
-                amount: computedTotal * 100,
-                currency: safeBookingFields.currency,
-                automatic_payment_methods: { enabled: true }
-            })
-
-            try {
-                await prismadb.booking.create({
-                    data: {
-                        ...safeBookingFields,
-                        paymentIntentId: paymentIntent.id,
-                        paymentStatus: false,
-                    }
-                })
-            } catch (dbError) {
-                // DB write failed after Stripe PI was created — cancel the PI to prevent
-                // an orphaned intent that can never be confirmed or reconciled.
-                try { await stripe.paymentIntents.cancel(paymentIntent.id) } catch {}
-                throw dbError
-            }
-
-            return NextResponse.json({ paymentIntent })
         }
+
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: computedTotal * 100,
+            currency: safeBookingFields.currency,
+            automatic_payment_methods: { enabled: true }
+        })
+
+        try {
+            await prismadb.booking.create({
+                data: {
+                    ...safeBookingFields,
+                    paymentIntentId: paymentIntent.id,
+                    paymentStatus: false,
+                }
+            })
+        } catch (dbError) {
+            // DB write failed after Stripe PI was created — cancel the PI to prevent
+            // an orphaned intent that can never be confirmed or reconciled.
+            try { await stripe.paymentIntents.cancel(paymentIntent.id) } catch {}
+            throw dbError
+        }
+
+        return NextResponse.json({ paymentIntent })
     } catch (error) {
         console.log('Error at /api/create-payment-intent POST', error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

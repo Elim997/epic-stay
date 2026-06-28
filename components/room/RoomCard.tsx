@@ -210,6 +210,7 @@ const RoomCard = ({ hotel, room, bookings = [] }: RoomCardProps) => {
         })
         .catch((error: any) => {
           console.log("Error", error);
+          setBookingIsLoading(false);
           toast({
             variant: "destructive",
             description: `Error: ${error.message}`,

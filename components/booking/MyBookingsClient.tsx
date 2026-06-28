@@ -124,6 +124,7 @@ const MyBookingsClient: React.FC<MyBookingsClientProps> = ({ booking }) => {
       })
       .catch((error: any) => {
         console.log("Error", error);
+        setBookingIsLoading(false);
         toast({
           variant: "destructive",
           description: `Error: ${error.message}`,
